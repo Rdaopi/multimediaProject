@@ -1,0 +1,7 @@
+# Modelli ML
+checkpoints/
+models/
+models_src/
+*.pth
+*.ckpt
+*.bin
