@@ -1,0 +1,29 @@
+# --- CORE ML & AUDIO ---
+torch>=2.0.0
+torchvision
+torchaudio
+numpy<2.1.0
+scipy
+librosa
+soundfile
+
+# --- MODELLI (OpenVoice & StyleTTS2) ---
+api
+munch
+pyyaml
+nltk
+jieba
+cn2an
+pypinyin
+eng-to-ipa
+phonemizer
+unidecode
+
+# --- ANALISI & VISUALIZZAZIONE ---
+scikit-learn
+matplotlib
+tqdm
+
+# --- UTILS ---
+requests
+python-dotenv
