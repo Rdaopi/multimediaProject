@@ -67,38 +67,41 @@ class GPTSoVITSExtractor(BaseVoiceEncoder):
 
     def extract(self, audio_path):
         try:
-            # 1. Preprocessing: GPT-SoVITS richiede tassativamente 16kHz per l'encoder SSL
-            wav_16k, _ = librosa.load(audio_path, sr=16000)
+            # 1. Caricamento e Resample a 16kHz
+            # librosa restituisce wav come array numpy 1D (T,)
+            wav, _ = librosa.load(audio_path, sr=16000)
+            wav = wav / (np.max(np.abs(wav)) + 1e-7) # Normalize
             
-            # Normalizzazione semplice (spesso utile per SSL)
-            wav_16k = wav_16k / (np.max(np.abs(wav_16k)) + 1e-7)
-
-            # Preparazione tensore [1, T]
-            wav_tensor = torch.from_numpy(wav_16k).float().to(self.device)
-            wav_tensor = wav_tensor.unsqueeze(0)
+            # --- SOLUZIONE DEFINITIVA ---
+            # 1. Convertiamo in Tensore (per soddisfare .device)
+            # 2. NON aggiungiamo dimensioni (niente unsqueeze). Lasciamo che sia (T,)
+            # 3. Spostiamo sul device corretto
+            wav_tensor = torch.from_numpy(wav).float().to(self.device)
 
             with torch.no_grad():
-                # 2. Estrazione Feature
-                # Il modello restituisce un dizionario o una tupla, noi vogliamo 'last_hidden_state'
-                # cnhubert.get_model() restituisce un modello wav2vec2 modificato
-                result = self.model(wav_tensor, output_hidden_states=True)
+                # Passiamo il tensore 1D. 
+                # Il wrapper interno farà: feature_extractor(x) -> aggiunge batch -> (1, T) -> Conv1D felice.
+                result = self.model(wav_tensor)
                 
-                # In GPT-SoVITS si usa solitamente l'output del 12° layer o l'ultimo stato
-                # result['last_hidden_state'] ha shape [Batch, Frames, 768]
-                if hasattr(result, 'last_hidden_state'):
-                    features = result.last_hidden_state
+                # Gestione output
+                if isinstance(result, torch.Tensor):
+                    features = result
+                elif isinstance(result, dict) and 'last_hidden_state' in result:
+                    features = result['last_hidden_state']
                 else:
-                    # Fallback per versioni diverse di transformers/hubert
-                    features = result[0]
+                    features = result[0] if isinstance(result, (tuple, list)) else result
 
-            # 3. Mean Pooling per ottenere un vettore 1D (Impronta Vocale)
-            # Trasformiamo la sequenza temporale in un singolo vettore facendo la media
-            embedding = torch.mean(features, dim=1).squeeze().cpu().numpy()
+                # 3. Mean Pooling
+                # features sarà [1, Time, 768]
+                if features.dim() == 3:
+                    embedding = torch.mean(features, dim=1).squeeze().cpu().numpy()
+                else:
+                    embedding = features.squeeze().cpu().numpy()
             
             return embedding
 
         except Exception as e:
-            print(f"❌ Errore {os.path.basename(audio_path)}: {e}")
+            print(f"❌ Errore su {os.path.basename(audio_path)}: {e}")
             return None
 
 if __name__ == "__main__":
