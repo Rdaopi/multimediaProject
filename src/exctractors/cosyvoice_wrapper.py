@@ -2,120 +2,97 @@ import os
 import sys
 import torch
 import torchaudio
+import torchaudio.compliance.kaldi as kaldi
+import onnxruntime as ort
 import numpy as np
-import warnings
+import librosa  # <--- USIAMO QUESTO CHE FUNZIONA!
 
-# --- PATH SETUP (Same as your other scripts) ---
+# --- SETUP PERCORSI ---
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 PROJECT_ROOT = os.path.abspath(os.path.join(SRC_DIR, ".."))
 
-if SRC_DIR not in sys.path:
-    sys.path.append(SRC_DIR)
+if SRC_DIR not in sys.path: sys.path.append(SRC_DIR)
 
 try:
     from base_encoder import BaseVoiceEncoder
 except ImportError:
-    print("❌ Error: Could not find base_encoder.py in src/")
+    print("❌ Errore: base_encoder.py non trovato.")
     sys.exit(1)
-
-# --- COSYVOICE SETUP ---
-# Adjust this to point to where you cloned CosyVoice
-COSYVOICE_ROOT = os.path.join(PROJECT_ROOT, "models_src", "CosyVoice")
-
-if COSYVOICE_ROOT not in sys.path:
-    sys.path.append(COSYVOICE_ROOT)
-    # CosyVoice often needs its third_party folder in path too
-    sys.path.append(os.path.join(COSYVOICE_ROOT, "third_party", "Matcha-TTS"))
-
-try:
-    # We import the main wrapper class which handles the loading of the specific embedding model
-    from cosyvoice.cli.cosyvoice import CosyVoice
-except ImportError:
-    print(f"❌ Critical Error: Could not import 'CosyVoice' from {COSYVOICE_ROOT}.")
-    print("Ensure you have installed the requirements for CosyVoice.")
-    sys.exit(1)
-
-warnings.filterwarnings("ignore")
 
 class CosyVoiceExtractor(BaseVoiceEncoder):
     def load_model(self):
-        self.device = self.device if self.device else ("cuda" if torch.cuda.is_available() else "cpu")
+        """Carica il modello ONNX."""
+        # Percorso del modello
+        self.onnx_path = os.path.join(PROJECT_ROOT, "models_src", "CosyVoice", "pretrained_models", "CosyVoice-300M", "campplus.onnx")
         
-        # Point this to your CosyVoice pretrained model folder
-        # e.g., "checkpoints/CosyVoice-300M" or "checkpoints/CosyVoice2-0.5B"
-        self.ckpt_dir = os.path.join(PROJECT_ROOT, "checkpoints", "CosyVoice-300M")
-        
-        if not os.path.exists(self.ckpt_dir):
-             raise FileNotFoundError(f"❌ CosyVoice model path not found: {self.ckpt_dir}")
+        # Fallback
+        if not os.path.exists(self.onnx_path):
+             self.onnx_path = os.path.join(PROJECT_ROOT, "checkpoints", "CosyVoice-300M", "campplus.onnx")
 
-        print(f"[CosyVoice] Loading model from: {self.ckpt_dir}")
+        if not os.path.exists(self.onnx_path):
+             raise FileNotFoundError(f"❌ Modello non trovato!\nCercato in: {self.onnx_path}")
+
+        print(f"[CosyVoice] Loading Cam++ (ONNX) da: {self.onnx_path}")
         
-        # Initialize the full CosyVoice wrapper
-        # This automatically loads the Cam++ speaker encoder inside 'self.model.frontend'
-        self.cosy_wrapper = CosyVoice(self.ckpt_dir)
+        # Sessione ONNX (Gestione errori CUDA)
+        try:
+            sess_options = ort.SessionOptions()
+            sess_options.log_severity_level = 3 
+            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+            self.session = ort.InferenceSession(self.onnx_path, sess_options=sess_options, providers=providers)
+            print(f"[CosyVoice] Sessione avviata (Provider: {self.session.get_providers()[0]})")
+        except Exception as e:
+            print(f"⚠️ GPU non disponibile, uso CPU.")
+            self.session = ort.InferenceSession(self.onnx_path, providers=['CPUExecutionProvider'])
+
+    def _compute_fbank(self, audio_path):
+        """
+        Versione ROBUSTA: Usa Librosa per caricare (funziona sempre su Windows)
+        e Torchaudio per i calcoli Fbank.
+        """
+        # 1. Carica con Librosa direttamente a 16kHz (bypassiamo i codec di Torch)
+        wav_numpy, _ = librosa.load(audio_path, sr=16000)
         
-        # We don't need the full flow/LLM models for extraction, but loading the wrapper 
-        # is the safest way to ensure we use the EXACT same audio frontend as the inference.
+        # 2. Converti in Tensore Torch [1, T]
+        wav = torch.from_numpy(wav_numpy).float()
+        wav = wav.unsqueeze(0) # Aggiungi dimensione batch -> [1, T]
         
-        # Access the internal frontend where the embedding logic lives
-        self.frontend = self.cosy_wrapper.frontend
+        # 3. Calcolo Fbank (Matematica Kaldi)
+        # Nota: librosa carica in float -1..1, Kaldi vuole PCM 16bit scalato
+        wav = wav * (1 << 15) 
+        feat = kaldi.fbank(wav, num_mel_bins=80, 
+                           frame_length=25, frame_shift=10, 
+                           dither=0.0, energy_floor=0.0,
+                           sample_frequency=16000)
+        
+        feat = feat - feat.mean(dim=0, keepdim=True)
+        return feat.unsqueeze(0).numpy() # [1, Time, 80]
 
     def extract(self, audio_path):
         try:
-            # 1. Load Audio
-            # CosyVoice prompt audio MUST be 16kHz
-            speech, sample_rate = torchaudio.load(audio_path)
+            # 1. Prepara audio
+            fbank = self._compute_fbank(audio_path)
             
-            if sample_rate != 16000:
-                speech = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)(speech)
+            # 2. Inferenza ONNX
+            input_name = self.session.get_inputs()[0].name
+            embedding = self.session.run(None, {input_name: fbank})[0]
             
-            # Ensure it's on the correct device
-            speech = speech.to(self.device)
-
-            # 2. Extract Embedding
-            # CosyVoice's frontend has a method specifically for this. 
-            # Depending on version, it might be `_extract_speaker_embedding` or we manually call the campplus model.
-            
-            # Method A: Use the internal private method if available (Most robust)
-            if hasattr(self.frontend, "_extract_speaker_embedding"):
-                # Some versions expect shape [1, T]
-                if speech.dim() == 1: speech = speech.unsqueeze(0)
-                embedding = self.frontend._extract_speaker_embedding(speech)
-            
-            # Method B: Manual Cam++ inference (Fallback)
-            # The speaker encoder is usually stored in self.frontend.campplus_session (if onnx) 
-            # or self.frontend.model (if torch)
-            else:
-                 # Standard CosyVoice usage often computes embedding inside inference_sft
-                 # Let's try to mimic the flow:
-                 # The frontend usually computes fbank -> passes to Cam++
-                 # But the easiest way is checking if 'campplus' is accessible
-                 pass 
-                 # (If Method A fails, the code will crash here, but Method A is standard for current CosyVoice repo)
-
-            # 3. Format Output
-            # Embedding is typically [1, 192] or [192]
-            return embedding.detach().cpu().numpy().squeeze()
+            # 3. Output pulito
+            return embedding.squeeze()
 
         except Exception as e:
-            # Fallback for "Method A" failure: inspect the object
-            try:
-                # If the wrapper method failed, let's look for the embedding model directly
-                # It is often named 'campplus' or 'speaker_encoder'
-                # This is a 'Last Resort' attempt
-                model = getattr(self.cosy_wrapper, 'model', None) # or self.cosy_wrapper.frontend
-                # ... implementation logic would go here if needed ...
-                print(f"⚠️ Standard extraction failed, check CosyVoice version. Error: {e}")
-                return None
-            except:
-                print(f"❌ Error extracting {os.path.basename(audio_path)}: {e}")
-                return None
+            print(f"❌ Errore su {os.path.basename(audio_path)}: {e}")
+            return None
 
 if __name__ == "__main__":
     extractor = CosyVoiceExtractor()
     
+    # Percorsi corretti
     input_dir = os.path.join(PROJECT_ROOT, "data", "raw_vctk")
     output_dir = os.path.join(PROJECT_ROOT, "data", "embeddings", "cosyvoice")
     
+    os.makedirs(output_dir, exist_ok=True)
+    
+    print(f"🚀 Inizio estrazione (CosyVoice) da: {input_dir}")
     extractor.process_all(input_dir, output_dir, suffix="_cosy.npy")
