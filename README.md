@@ -32,7 +32,7 @@ Proposed layout
 multimediaProject
 ┣ checkpoints                            # some additional data for the models
 ┣ data
-┃ ┣ embeddings                           # embeddings of the samples from raw_vctk
+┃ ┣ embeddings                           # embeddings of the samples from raw_vctk, the embeddings are suddivied by the encoder type
 ┃ ┗ raw_vctk                             # our samples, both real and fake ones
 ┣ model_src                              # models of voice cloning machines
 ┃ ┣ Open Voice
