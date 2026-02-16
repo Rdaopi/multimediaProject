@@ -13,7 +13,6 @@ multimediaProject
 ┃ ┗ CosyVoice
 ┣ src                                    # our code
 ┃ ┣ __pycache__                          # I don't... know
-┃ ┣ analysis                             # still unknown of what it does
 ┃ ┣ extractors                           # extractors for every voice cloning machine      
 ┃ ┃ ┣ cosyvoice_wrapper.py               # extractor for cosyvoice
 ┃ ┃ ┣ gpt_sovits_wrapper.py              # extractor for GPT-SoVITS
@@ -73,6 +72,9 @@ Questo progetto confronta le capacità di estrazione dell'identità vocale (voic
 ## Comandi Conda per installare le dipendenze
 conda env create -f environment.yml
 conda activate openvoice_env
+
+**Comando per fare l'upgrade dell'ambiente conda esistente in seguito all'upgrade di nuove dipendenze**
+conda env update --file environment.yml --prune
 
 ## Comandi venv per ambiente virtuale (se non si vuole usare Conda)
 python -m venv venv
