@@ -1,152 +1,85 @@
 import os
+import pickle
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
-import pickle
+from sklearn.preprocessing import StandardScaler
 
-# --- SETUP PERCORSI ---
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Assumiamo che il file sia nella root del progetto
-PROJECT_ROOT = CURRENT_DIR
-EMBEDDINGS_BASE_DIR = os.path.join(PROJECT_ROOT, "data", "embeddings")
-OUTPUT_DIR = os.path.join(PROJECT_ROOT, "data")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-def get_speaker_id(filename):
-    """
-    Estrae lo speaker ID dal nome file.
-    Esempio: 'p225_001' -> 'p225'
-    Se il formato è diverso, adatta la logica split.
-    """
-    return filename.split('_')[0]
-
-def load_and_normalize(path):
-    """Carica un embedding e applica la normalizzazione L2."""
-    try:
-        emb = np.load(path)
-        emb = emb.flatten() # Forza a 1D
-        norm = np.linalg.norm(emb)
-        if norm > 0:
-            return emb / norm
-        return emb
-    except Exception as e:
-        print(f"❌ Errore nel caricamento di {path}: {e}")
+def load_embeddings(db_path):
+    if not os.path.exists(db_path):
         return None
+    with open(db_path, 'rb') as f:
+        return pickle.load(f)
 
-def create_database():
-    """Scansiona le cartelle e crea un DataFrame con tutti i dati."""
-    data_list = []
-    # I nomi delle sottocartelle definiti in super_wrapper.py
-    models = ["cosyvoice", "gpt_sovits", "openvoice", "styletts2"]
-    
-    print("📂 Caricamento degli embedding in corso...")
-    
-    for model in models:
-        model_dir = os.path.join(EMBEDDINGS_BASE_DIR, model)
-        if not os.path.exists(model_dir):
-            continue
-            
-        files = [f for f in os.listdir(model_dir) if f.endswith('.npy')]
-        for f in files:
-            # Pulizia del nome file per risalire all'originale
-            clean_name = f.replace("_cosy.npy", "").replace("_gpt.npy", "") \
-                          .replace("_ov.npy", "").replace("_style.npy", "")
-            
-            emb_path = os.path.join(model_dir, f)
-            embedding = load_and_normalize(emb_path)
-            
-            if embedding is not None:
-                data_list.append({
-                    "filename": clean_name,
-                    "speaker": get_speaker_id(clean_name),
-                    "model": model,
-                    "embedding": embedding
-                })
-    
-    return pd.DataFrame(data_list)
+def plot_voice_comparison(df, output_path="data/voice_comparison_pca.png"):
+    # Creiamo una figura con 4 grafici (uno per ogni modello)
+    models = df['model'].unique()
+    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+    axes = axes.flatten()
 
-def plot_tsne(df):
-    """Genera e salva il grafico t-SNE."""
-    if len(df) < 2:
-        print("⚠️ Troppi pochi dati per generare un t-SNE.")
-        return
+    print("🎨 Generazione grafici PCA...")
 
-    print("🎨 Generazione del grafico t-SNE (riduzione dimensionale)...")
+    for i, model_name in enumerate(models):
+        ax = axes[i]
+        # Filtriamo i dati per il modello corrente
+        model_df = df[df['model'] == model_name].copy()
+        
+        # Estraiamo gli embedding e assicuriamoci che siano piatti
+        embeddings = np.array([e.flatten() for e in model_df['embedding'].values])
+        
+        # 1. Normalizzazione (StandardScaler)
+        # Aggiungiamo un piccolissimo rumore (epsilon) per evitare divisioni per zero 
+        # se i file sono troppo simili
+        embeddings = embeddings + np.random.normal(0, 1e-8, embeddings.shape)
+        scaler = StandardScaler()
+        embeddings_scaled = scaler.fit_transform(embeddings)
+
+        # 2. PCA (2 componenti per il grafico 2D)
+        # Usiamo PCA invece di t-SNE perché è stabile con pochi file
+        pca = PCA(n_components=2)
+        coords = pca.fit_transform(embeddings_scaled)
+        
+        # 3. Plot
+        filenames = model_df['filename'].values
+        for j, filename in enumerate(filenames):
+            ax.scatter(coords[j, 0], coords[j, 1], label=filename, s=150, edgecolors='black')
+            ax.annotate(filename, (coords[j, 0], coords[j, 1]), xytext=(5, 5), textcoords='offset points')
+
+        ax.set_title(f"Modello: {model_name.upper()}", fontsize=14, fontweight='bold')
+        ax.grid(True, linestyle='--', alpha=0.6)
+        ax.set_xlabel("Componente Principale 1")
+        ax.set_ylabel("Componente Principale 2")
+
+    plt.suptitle("Analisi Identità Vocale - Confronto Modelli", fontsize=20)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     
-    # Normalizzazione embedding a dimensione comune usando PCA
-    # Gli embedding da modelli diversi hanno dimensioni diverse
-    # PCA li riduce tutti a 64 dimensioni per confrontabilità
-    embeddings_list = df['embedding'].values
-    
-    # Trova la massima dimensione
-    max_dim = max([e.shape[0] for e in embeddings_list])
-    
-    # PCA per normalizzare a 64D
-    target_dim = min(64, max_dim - 1)  # Min 64 o meno se embedding piccoli
-    
-    try:
-        pca = PCA(n_components=target_dim)
-        embeddings_normalized = pca.fit_transform(np.array([e.flatten() for e in embeddings_list]))
-        print(f"   ✓ Embedding normalizzati a {target_dim}D via PCA")
-    except Exception as e:
-        print(f"⚠️  Errore PCA: {e}. Uso embedding raw.")
-        embeddings_normalized = np.array([e.flatten() for e in embeddings_list])
-    
-    # t-SNE su embedding normalizzati
-    tsne = TSNE(n_components=2, random_state=42, perplexity=min(30, len(df)-1))
-    vis_dims = tsne.fit_transform(embeddings_normalized)
-    
-    # Aggiungiamo le coordinate al DataFrame
-    df['x'] = vis_dims[:, 0]
-    df['y'] = vis_dims[:, 1]
-    
-    # Creazione del Plot
-    plt.figure(figsize=(14, 10))
-    
-    # Visualizziamo i punti colorati per modello e con forme diverse per speaker (se non troppi)
-    # Se hai troppi speaker, usa solo 'hue' per il modello
-    plot = sns.scatterplot(
-        data=df, 
-        x='x', y='y', 
-        hue='model', 
-        style='model', 
-        s=100, 
-        palette='viridis',
-        alpha=0.7
-    )
-    
-    plt.title('Voice Identity Analysis: t-SNE Cluster Comparison', fontsize=15)
-    plt.xlabel('t-SNE dimension 1')
-    plt.ylabel('t-SNE dimension 2')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.grid(True, linestyle='--', alpha=0.5)
-    
-    plot_path = os.path.join(OUTPUT_DIR, "tsne_analysis.png")
-    plt.tight_layout()
-    plt.savefig(plot_path, dpi=300)
-    print(f"✅ Grafico salvato con successo in: {plot_path}")
+    # Crea cartella data se non esiste
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    plt.savefig(output_path)
+    print(f"✅ Grafico salvato con successo in: {output_path}")
+    plt.close()
 
 def main():
-    # 1. Creazione Database
-    df = create_database()
+    db_path = os.path.join("data", "embedding_db.pkl")
+    data = load_embeddings(db_path)
     
-    if df.empty:
-        print("❌ Database vuoto. Assicurati che gli embedding siano in data/embeddings/")
+    if data is None or len(data) == 0:
+        print(f"❌ Errore: Database {db_path} non trovato o vuoto.")
         return
-        
-    print(f"✅ Caricati {len(df)} embedding.")
 
-    # 2. Salvataggio Database (per usi futuri in altri script)
-    pkl_path = os.path.join(OUTPUT_DIR, "embedding_db.pkl")
-    with open(pkl_path, 'wb') as f:
-        pickle.dump(df, f)
-    print(f"✅ Database salvato in: {pkl_path}")
+    # Trasformiamo in DataFrame
+    df = pd.DataFrame(data)
+    
+    # Pulizia nomi file (togliamo .wav per il grafico)
+    df['filename'] = df['filename'].apply(lambda x: os.path.basename(x))
 
-    # 3. Analisi Grafica
-    plot_tsne(df)
+    try:
+        plot_voice_comparison(df)
+    except Exception as e:
+        print(f"❌ Errore critico durante la generazione del grafico: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()

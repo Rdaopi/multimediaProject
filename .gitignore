@@ -5,3 +5,7 @@ models_src/
 *.pth
 *.ckpt
 *.bin
+*.onnx
+*.png
+*.pkl
+*.wav
