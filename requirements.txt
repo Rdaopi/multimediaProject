@@ -7,8 +7,7 @@ scipy
 librosa
 soundfile
 
-# --- MODELLI (OpenVoice & StyleTTS2) ---
-api
+# --- MODELLI ---
 munch
 pyyaml
 nltk
@@ -22,8 +21,10 @@ unidecode
 # --- ANALISI & VISUALIZZAZIONE ---
 scikit-learn
 matplotlib
+seaborn
 tqdm
 
 # --- UTILS ---
 requests
 python-dotenv
+onnxruntime

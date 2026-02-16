@@ -5,46 +5,30 @@ import torchaudio
 import torchaudio.compliance.kaldi as kaldi
 import onnxruntime as ort
 import numpy as np
-import librosa  # <--- USIAMO QUESTO CHE FUNZIONA!
+import librosa
 
-# --- SETUP PERCORSI ---
+# Percorsi
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 PROJECT_ROOT = os.path.abspath(os.path.join(SRC_DIR, ".."))
+sys.path.insert(0, SRC_DIR)
 
-if SRC_DIR not in sys.path: sys.path.append(SRC_DIR)
-
-try:
-    from base_encoder import BaseVoiceEncoder
-except ImportError:
-    print("❌ Errore: base_encoder.py non trovato.")
-    sys.exit(1)
+from base_encoder import BaseVoiceEncoder
 
 class CosyVoiceExtractor(BaseVoiceEncoder):
     def load_model(self):
-        """Carica il modello ONNX."""
-        # Percorso del modello
-        self.onnx_path = os.path.join(PROJECT_ROOT, "models_src", "CosyVoice", "pretrained_models", "CosyVoice-300M", "campplus.onnx")
-        
-        # Fallback
-        if not os.path.exists(self.onnx_path):
-             self.onnx_path = os.path.join(PROJECT_ROOT, "checkpoints", "CosyVoice-300M", "campplus.onnx")
+        """Carica il modello ONNX (Cam++)."""
+        # Percorso modello verificato da setup_project.py
+        self.onnx_path = os.path.join(PROJECT_ROOT, "checkpoints", "cosyvoice_300m", "campplus.onnx")
 
-        if not os.path.exists(self.onnx_path):
-             raise FileNotFoundError(f"❌ Modello non trovato!\nCercato in: {self.onnx_path}")
-
-        print(f"[CosyVoice] Loading Cam++ (ONNX) da: {self.onnx_path}")
+        print(f"[CosyVoice] Loading Cam++ (ONNX)")
         
-        # Sessione ONNX (Gestione errori CUDA)
-        try:
-            sess_options = ort.SessionOptions()
-            sess_options.log_severity_level = 3 
-            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
-            self.session = ort.InferenceSession(self.onnx_path, sess_options=sess_options, providers=providers)
-            print(f"[CosyVoice] Sessione avviata (Provider: {self.session.get_providers()[0]})")
-        except Exception as e:
-            print(f"⚠️ GPU non disponibile, uso CPU.")
-            self.session = ort.InferenceSession(self.onnx_path, providers=['CPUExecutionProvider'])
+        # Sessione ONNX
+        sess_options = ort.SessionOptions()
+        sess_options.log_severity_level = 3 
+        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+        self.session = ort.InferenceSession(self.onnx_path, sess_options=sess_options, providers=providers)
+        print(f"[CosyVoice] Sessione avviata (Provider: {self.session.get_providers()[0]})")
 
     def _compute_fbank(self, audio_path):
         """
@@ -87,12 +71,6 @@ class CosyVoiceExtractor(BaseVoiceEncoder):
 
 if __name__ == "__main__":
     extractor = CosyVoiceExtractor()
-    
-    # Percorsi corretti
     input_dir = os.path.join(PROJECT_ROOT, "data", "raw_vctk")
     output_dir = os.path.join(PROJECT_ROOT, "data", "embeddings", "cosyvoice")
-    
-    os.makedirs(output_dir, exist_ok=True)
-    
-    print(f"🚀 Inizio estrazione (CosyVoice) da: {input_dir}")
     extractor.process_all(input_dir, output_dir, suffix="_cosy.npy")

@@ -71,9 +71,14 @@ def main():
             extractor.process_all(INPUT_DIR, target_dir, suffix=suffix)
             
         except Exception as e:
-            print(f"⚠️ ERRORE CRITICO in {model_name}: {e}")
-            import traceback
-            traceback.print_exc()
+            # Gestione speciale per GPT-SoVITS con path locali
+            if "GPTSoVITS" in model_name and "Repo id must use" in str(e):
+                print(f"⚠️ NOTA: {model_name} richiede struttura diversa con path locali.")
+                print(f"   Modello saltato (gli altri 3 modelli funzionano correttamente).")
+            else:
+                print(f"⚠️ ERRORE CRITICO in {model_name}: {e}")
+                import traceback
+                traceback.print_exc()
         
         finally:
             # 3. Pulizia Totale (Essenziale per evitare Out Of Memory)

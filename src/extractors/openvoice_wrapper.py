@@ -4,35 +4,18 @@ import torch
 import warnings
 import numpy as np
 
-# --- SETUP PERCORSI ---
+# Percorsi
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Definiamo la cartella src (un livello sopra extractors)
 SRC_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 PROJECT_ROOT = os.path.abspath(os.path.join(SRC_DIR, ".."))
+sys.path.insert(0, SRC_DIR)
 
-# Aggiungiamo src al path per poter importare base_encoder
-if SRC_DIR not in sys.path:
-    sys.path.append(SRC_DIR)
-
-# Importiamo la classe base
-try:
-    from base_encoder import BaseVoiceEncoder
-except ImportError:
-    print("❌ Errore: Non trovo base_encoder.py in src/")
-    sys.exit(1)
-
-# Percorsi specifici OpenVoice
+# Setup modelli (verificati da setup_project.py)
 OPENVOICE_PARENT = os.path.join(PROJECT_ROOT, "models_src", "OpenVoice")
-OPENVOICE_SRC = os.path.join(OPENVOICE_PARENT, "openvoice")
+sys.path.insert(0, OPENVOICE_PARENT)
 
-if OPENVOICE_PARENT not in sys.path: sys.path.append(OPENVOICE_PARENT)
-if OPENVOICE_SRC not in sys.path: sys.path.append(OPENVOICE_SRC)
-
-try:
-    from api import ToneColorConverter
-except ImportError:
-    print(f"❌ Errore critico: Impossibile importare 'api' da OpenVoice.")
-    sys.exit(1)
+from base_encoder import BaseVoiceEncoder
+from openvoice.api import ToneColorConverter
 
 warnings.filterwarnings("ignore")
 
@@ -43,10 +26,7 @@ class OpenVoiceExtractor(BaseVoiceEncoder):
         config_path = os.path.join(ckpt_dir, 'config.json')
         ckpt_path = os.path.join(ckpt_dir, 'checkpoint.pth')
 
-        if not os.path.exists(ckpt_path):
-            raise FileNotFoundError(f"❌ Pesi non trovati in: {ckpt_path}")
-
-        print(f"[OpenVoice] Loading su: {self.device}")
+        print(f"[OpenVoice] Loading (Device: {self.device})")
         self.model = ToneColorConverter(config_path, device=self.device)
         self.model.load_ckpt(ckpt_path)
 
@@ -62,8 +42,6 @@ class OpenVoiceExtractor(BaseVoiceEncoder):
 
 if __name__ == "__main__":
     extractor = OpenVoiceExtractor()
-    input_vctk = os.path.join(PROJECT_ROOT, "data", "raw_vctk")
-    output_ov = os.path.join(PROJECT_ROOT, "data", "embeddings", "openvoice")
-    
-    # Chiamata al metodo ereditato dalla Base Class
-    extractor.process_all(input_vctk, output_ov, suffix="_ov.npy")
+    input_dir = os.path.join(PROJECT_ROOT, "data", "raw_vctk")
+    output_dir = os.path.join(PROJECT_ROOT, "data", "embeddings", "openvoice")
+    extractor.process_all(input_dir, output_dir, suffix="_ov.npy")

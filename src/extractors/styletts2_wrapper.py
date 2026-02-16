@@ -7,31 +7,18 @@ import librosa
 import numpy as np
 from torch.nn.utils import remove_spectral_norm
 
-# --- SETUP PERCORSI ---
+# Percorsi
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Definiamo la cartella src (un livello sopra extractors)
 SRC_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 PROJECT_ROOT = os.path.abspath(os.path.join(SRC_DIR, ".."))
+sys.path.insert(0, SRC_DIR)
 
-# Aggiungiamo src al path per poter importare base_encoder
-if SRC_DIR not in sys.path:
-    sys.path.append(SRC_DIR)
-
-try:
-    from base_encoder import BaseVoiceEncoder
-except ImportError:
-    print("❌ Errore: Non trovo base_encoder.py in src/")
-    sys.exit(1)
-
-# Percorsi specifici StyleTTS2
+# Setup modelli (verificati da setup_project.py)
 STYLE_PATH = os.path.join(PROJECT_ROOT, "models_src", "StyleTTS2")
-sys.path.append(STYLE_PATH)
+sys.path.insert(0, STYLE_PATH)
 
-try:
-    from models import StyleEncoder
-except ImportError:
-    print(f"❌ Errore import StyleTTS2. Verifica path: {STYLE_PATH}")
-    sys.exit(1)
+from base_encoder import BaseVoiceEncoder
+from models import StyleEncoder
 
 # --- Utility Classes ---
 class SqueezeWrapper(nn.Module):
@@ -60,12 +47,10 @@ class StyleTTS2Extractor(BaseVoiceEncoder):
         m_params = config['model_params']
         self.sr = config['preprocess_params'].get('sr', 24000)
 
-        # Trova Checkpoint
-        pth_files = [f for f in os.listdir(ckpt_dir) if f.endswith('.pth')]
-        if not pth_files: raise FileNotFoundError(f"Nessun .pth in {ckpt_dir}")
-        model_path = os.path.join(ckpt_dir, pth_files[0])
+        # Checkpoint verificato da setup_project.py
+        model_path = os.path.join(ckpt_dir, "epochs_2nd_00020.pth")
 
-        print(f"[StyleTTS2] Init su {self.device}")
+        print(f"[StyleTTS2] Init (Device: {self.device})")
         
         # Build Modello
         self.model = StyleEncoder(
@@ -138,8 +123,6 @@ class StyleTTS2Extractor(BaseVoiceEncoder):
 
 if __name__ == "__main__":
     extractor = StyleTTS2Extractor()
-    input_vctk = os.path.join(PROJECT_ROOT, "data", "raw_vctk")
-    output_style = os.path.join(PROJECT_ROOT, "data", "embeddings", "styletts2")
-    
-    # Uso metodo base
-    extractor.process_all(input_vctk, output_style, suffix="_style.npy")
+    input_dir = os.path.join(PROJECT_ROOT, "data", "raw_vctk")
+    output_dir = os.path.join(PROJECT_ROOT, "data", "embeddings", "styletts2")
+    extractor.process_all(input_dir, output_dir, suffix="_style.npy")
