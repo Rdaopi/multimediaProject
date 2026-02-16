@@ -9,3 +9,4 @@ models_src/
 *.png
 *.pkl
 *.wav
+*.npy
