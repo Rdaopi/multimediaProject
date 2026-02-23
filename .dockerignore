@@ -1,0 +1,6 @@
+checkpoints/
+data/
+models_src/
+__pycache__/
+*.pyc
+.git/

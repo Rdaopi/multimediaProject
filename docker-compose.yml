@@ -1,0 +1,17 @@
+services:
+  voice-tool:
+    build: .
+    image: voice-identity-tool
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./data:/workspace/app/data
+      - ./checkpoints:/workspace/app/checkpoints
+      - ./models_src:/workspace/app/models_src
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

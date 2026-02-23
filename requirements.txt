@@ -1,11 +1,14 @@
 # --- CORE ML & AUDIO ---
-torch>=2.0.0
-torchvision
-torchaudio
 numpy<2.1.0
 scipy
 librosa
 soundfile
+einops
+
+# --- HUGGINGFACE & AI ---
+transformers
+accelerate
+huggingface-hub
 
 # --- MODELLI ---
 munch
@@ -17,6 +20,7 @@ pypinyin
 eng-to-ipa
 phonemizer
 unidecode
+inflect
 
 # --- ANALISI & VISUALIZZAZIONE ---
 scikit-learn
