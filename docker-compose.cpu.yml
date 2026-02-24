@@ -1,0 +1,12 @@
+services:
+  voice-tool-cpu:
+    build: 
+      context: .
+      dockerfile: Dockerfile.cpu
+    image: voice-identity-tool-cpu
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./data:/workspace/app/data
+      - ./checkpoints:/workspace/app/checkpoints
+      - ./models_src:/workspace/app/models_src
