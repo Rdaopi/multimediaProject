@@ -1,0 +1,30 @@
+FROM python:3.10-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    ffmpeg \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace/app
+
+COPY requirements.txt /workspace/app/
+
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+RUN pip install --default-timeout=1000 --no-cache-dir -r requirements.txt
+
+RUN pip install --default-timeout=1000 --no-cache-dir \
+    av ctranslate2 cython dtw-python einx einops-exts \
+    faster-whisper ffmpy ftfy langid language-tags \
+    openai openai-whisper pandas pydub resampy \
+    sentencepiece vector-quantize-pytorch wavmark whisper-timestamped \
+    colorama coloredlogs
+
+COPY . /workspace/app/
+
+ENTRYPOINT ["python", "main.py"]

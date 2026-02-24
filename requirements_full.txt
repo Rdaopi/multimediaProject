@@ -1,0 +1,63 @@
+--extra-index-url https://download.pytorch.org/whl/cu118
+
+# --- CORE PYTORCH ---
+torch
+torchvision
+torchaudio
+
+# --- CORE ML & AUDIO ---
+numpy<2.1.0
+scipy
+librosa
+soundfile
+einops
+einops-exts
+wavmark
+pydub
+resampy
+
+# --- HUGGINGFACE & AI ---
+transformers
+accelerate
+huggingface-hub
+openai
+openai-whisper
+faster-whisper
+sentencepiece
+ctranslate2
+vector-quantize-pytorch
+
+# --- MODELLI (Text processing & utils) ---
+munch
+pyyaml
+nltk
+jieba
+cn2an
+pypinyin
+eng-to-ipa
+phonemizer
+unidecode
+inflect
+langid
+language-tags
+
+# --- ANALISI & VISUALIZZAZIONE ---
+scikit-learn
+matplotlib
+seaborn
+tqdm
+pandas
+
+# --- UTILS & EXTRA ---
+requests
+python-dotenv
+onnxruntime
+av
+cython
+dtw-python
+einx
+ffmpy
+ftfy
+whisper-timestamped
+colorama
+coloredlogs
