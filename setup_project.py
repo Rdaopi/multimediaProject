@@ -1,6 +1,6 @@
 """
-Setup script per il Voice Identity Analysis Tool.
-Esegue tutte le verifiche preliminari e l'installazione delle dipendenze.
+Setup script for Voice Identity Analysis Tool.
+Executes all the preliminary operations and handles the dependencies.
 """
 
 import os
@@ -8,7 +8,7 @@ import sys
 import subprocess
 
 def print_step(message):
-    """Stampa un passo di setup."""
+    """Print a setup part."""
     print(f"\n{'='*60}")
     print(f"📋 {message}")
     print(f"{'='*60}")
@@ -21,15 +21,15 @@ def print_error(message):
     return False
 
 def install_dependencies():
-    """Installa i pacchetti da requirements.txt."""
+    """Install the libraries."""
     print_step("Installazione Dipendenze Python")
     
     req_file = os.path.join(os.path.dirname(__file__), "requirements.txt")
     
     if not os.path.exists(req_file):
-        return print_error(f"File requirements.txt non trovato: {req_file}")
+        return print_error(f"File requirements.txt not found: {req_file}")
     
-    print(f"📦 Installazione da: {req_file}")
+    print(f"Installation from: {req_file}")
     
     try:
         result = subprocess.run(
@@ -41,22 +41,22 @@ def install_dependencies():
         )
         
         if result.returncode != 0:
-            print(f"⚠️ Warning durante l'installazione:")
+            print(f"⚠️ Warning: ")
             print(result.stderr[:500])
             # Continua comunque, non bloccare
         
-        print_success("Dipendenze controllate/installate")
+        print_success("Dependencies checked/installed")
         return True
         
     except subprocess.TimeoutExpired:
-        return print_error("Timeout durante l'installazione (>5 min)")
+        return print_error("Timeout during the installation (>5 min)")
     except Exception as e:
-        print(f"⚠️ Errore durante pip install: {e}")
+        print(f"⚠️ Error during pip install: {e}")
         return True  # Non bloccare
 
 def verify_directories():
     """Verifica e crea le cartelle necessarie."""
-    print_step("Verifica Struttura Cartelle")
+    print_step("Checks Directory Structure")
     
     PROJECT_ROOT = os.path.dirname(__file__)
     
@@ -81,8 +81,7 @@ def verify_directories():
     return all_ok
 
 def verify_models():
-    """Verifica la presenza dei modelli pre-addestrati."""
-    print_step("Verifica Modelli Pre-addestrati")
+    print_step("Verifies model existence")
     
     PROJECT_ROOT = os.path.dirname(__file__)
     
@@ -103,69 +102,62 @@ def verify_models():
     
     for model_name, model_path in models.items():
         if os.path.exists(model_path):
-            print_success(f"[{model_name}] trovato")
+            print_success(f"[{model_name}] found")
         else:
-            print_error(f"[{model_name}] NON TROVATO")
+            print_error(f"[{model_name}] NOT FOUND")
             print(f"   Atteso: {model_path}")
             missing.append(model_name)
     
     if missing:
-        print(f"\n⚠️  Modelli mancanti: {', '.join(missing)}")
-        print("   Nota: La pipeline continuerà, ma questi modelli salteranno gli errori.")
+        print(f"\nMissing Models: {', '.join(missing)}")
+        print("   Note: The pipeline will continue")
     
     return True  # Comunque non blocchiamo
 
 def verify_input_data():
-    """Verifica la presenza dei dati di input."""
-    print_step("Verifica Dati di Input")
+    """Verifies the data input existence."""
+    print_step("Data input existence")
     
     PROJECT_ROOT = os.path.dirname(__file__)
     input_dir = os.path.join(PROJECT_ROOT, "data", "raw_vctk")
     
     if not os.path.exists(input_dir):
-        print_error(f"Cartella input non trovata: {input_dir}")
+        print_error(f"Input folder not found: {input_dir}")
         return False
     
     wav_files = [f for f in os.listdir(input_dir) if f.lower().endswith('.wav')]
     
     if not wav_files:
-        print_error(f"Nessun file .wav trovato in {input_dir}")
+        print_error(f"No .wav file found in {input_dir}")
         return False
     
-    print_success(f"Trovati {len(wav_files)} file .wav")
+    print_success(f"Found {len(wav_files)} file .wav")
     for f in wav_files:
         print(f"   - {f}")
     
     return True
 
 def main():
-    """Esegue l'intero setup."""
     print("\n" + "🌟"*30)
     print("🚀 SETUP VOICE IDENTITY ANALYSIS TOOL 🚀".center(60))
     print("🌟"*30 + "\n")
     
-    # 1. Installa dipendenze
     if not install_dependencies():
-        print_error("Fallito: Impossibile installare dipendenze")
-        # Continua comunque
+        print_error("Failed: It's impossible to install the libraries")
     
-    # 2. Verifica cartelle
     if not verify_directories():
-        print_error("ATTENZIONE: Alcune cartelle mancano")
-        # Continua ma avvisa
+        print_error("Warning: Some missing folders")
     
-    # 3. Verifica modelli
     verify_models()
     
-    # 4. Verifica input data
     if not verify_input_data():
         print("\n" + "❌"*30)
-        print("ERRORE CRITICO: Dati di input mancanti".center(60))
+        print("CRITICAL ERROR: Input data missing".center(60))
         print("❌"*30 + "\n")
         return False
     
     print("\n" + "✅"*30)
-    print("✅ SETUP COMPLETATO CON SUCCESSO ✅".center(60))
+    print("SETUP COMPLETED ".center(60))
     print("✅"*30 + "\n")
     return True
 

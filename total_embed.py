@@ -13,7 +13,7 @@ def load_embeddings(db_path):
         return pickle.load(f)
 
 def plot_voice_comparison(df, output_path="data/voice_comparison_pca.png"):
-    # Creiamo una figura con 4 grafici (uno per ogni modello)
+    
     models = df['model'].unique()
     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
     axes = axes.flatten()
@@ -22,21 +22,17 @@ def plot_voice_comparison(df, output_path="data/voice_comparison_pca.png"):
 
     for i, model_name in enumerate(models):
         ax = axes[i]
-        # Filtriamo i dati per il modello corrente
+        
         model_df = df[df['model'] == model_name].copy()
         
-        # Estraiamo gli embedding e assicuriamoci che siano piatti
         embeddings = np.array([e.flatten() for e in model_df['embedding'].values])
         
-        # 1. Normalizzazione (StandardScaler)
-        # Aggiungiamo un piccolissimo rumore (epsilon) per evitare divisioni per zero 
-        # se i file sono troppo simili
+        # 1. StandardScaler Normalization
         embeddings = embeddings + np.random.normal(0, 1e-8, embeddings.shape)
         scaler = StandardScaler()
         embeddings_scaled = scaler.fit_transform(embeddings)
 
-        # 2. PCA (2 componenti per il grafico 2D)
-        # Usiamo PCA invece di t-SNE perché è stabile con pochi file
+        # 2. PCA 
         pca = PCA(n_components=2)
         coords = pca.fit_transform(embeddings_scaled)
         
@@ -54,7 +50,6 @@ def plot_voice_comparison(df, output_path="data/voice_comparison_pca.png"):
     plt.suptitle("Analisi Identità Vocale - Confronto Modelli", fontsize=20)
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     
-    # Crea cartella data se non esiste
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     plt.savefig(output_path)
     print(f"✅ Grafico salvato con successo in: {output_path}")
@@ -68,10 +63,8 @@ def main():
         print(f"❌ Errore: Database {db_path} non trovato o vuoto.")
         return
 
-    # Trasformiamo in DataFrame
     df = pd.DataFrame(data)
     
-    # Pulizia nomi file (togliamo .wav per il grafico)
     df['filename'] = df['filename'].apply(lambda x: os.path.basename(x))
 
     try:
