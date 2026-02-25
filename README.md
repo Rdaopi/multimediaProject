@@ -4,33 +4,6 @@
 multimediaProject
 ┣ checkpoints                            # some additional data for the models
 ┣ data
-┃ ┣ embeddings                           # embeddings of the samples from raw_vctk
-┃ ┗ raw_vctk                             # our samples, both real and fake ones
-┣ model_src                              # models of voice cloning machines
-┃ ┣ Open Voice
-┃ ┣ StyleTTS2
-┃ ┣ GPT-SoVITS
-┃ ┗ CosyVoice
-┣ src                                    # our code
-┃ ┣ __pycache__                          # I don't... know
-┃ ┣ extractors                           # extractors for every voice cloning machine      
-┃ ┃ ┣ cosyvoice_wrapper.py               # extractor for cosyvoice
-┃ ┃ ┣ gpt_sovits_wrapper.py              # extractor for GPT-SoVITS
-┃ ┃ ┣ openvoice_wrapper.py               # extractor for openvoice
-┃ ┃ ┗ styletts2_wrapper.py               # extractor for styletts2
-┃ ┗ base_encoder.py                      # I don't know what it is
-┣ README.md                              # readme
-┣ environment.yml                        # environment's settings 
-┣ main.py                                # main code
-┗ requirements.txt                       # libraries needed
-```
-
-Proposed layout
-
-```
-multimediaProject
-┣ checkpoints                            # some additional data for the models
-┣ data
 ┃ ┣ embeddings                           # embeddings of the samples from raw_vctk, the embeddings are suddivied by the encoder type
 ┃ ┗ raw_vctk                             # our samples, both real and fake ones
 ┣ model_src                              # models of voice cloning machines
@@ -47,7 +20,7 @@ multimediaProject
 ┃ ┃ ┗ styletts2_wrapper.py               # extractor for styletts2
 ┃ ┗ super_wrapper.py                     # it calls all the extractors for a single data
 ┣ total_wrapper.py                       # it calls the super_wrapper on all the data
-┣ total_embed.py                         # it does all the embeddings and it does the graphs(?)
+┣ total_embed.py                         # it does all the embeddings and it does the graphs
 ┣ main.py                                # main code, it does run everything
 ┣ environment.yml                        # environment's settings 
 ┣ README.md                              # readme
