@@ -1,0 +1,15 @@
+[submodule "models_src/OpenVoice"]
+	path = models_src/OpenVoice
+	url = https://github.com/myshell-ai/OpenVoice.git
+
+[submodule "models_src/StyleTTS2"]
+	path = models_src/StyleTTS2
+	url = https://github.com/yl4579/StyleTTS2.git
+
+[submodule "models_src/CosyVoice"]
+	path = models_src/CosyVoice
+	url = https://github.com/FunAudioLLM/CosyVoice.git
+
+[submodule "models_src/GPT-SoVITS"]
+	path = models_src/GPT-SoVITS
+	url = https://github.com/RVC-Boss/GPT-SoVITS.git
