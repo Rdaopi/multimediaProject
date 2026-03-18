@@ -19,5 +19,18 @@ def main():
     import total_wrapper
     total_wrapper.main()
 
+    # ========== STEP 3: ANALISI STATISTICA ==========
+    print("\n📈 Avvio Analisi Statistica e calcolo Entropia...\n")
+    
+    try:
+        import statistical_analysis
+        statistical_analysis.main()
+    except ImportError:
+        print("\n⚠️ Impossibile trovare 'statistical_analysis.py'. Assicurati che sia nella stessa cartella di main.py.")
+    except Exception as e:
+        print(f"\n❌ Errore durante l'analisi statistica: {e}")
+
+    print("\n✅ PIPELINE COMPLETATA CON SUCCESSO! 🎉")
+
 if __name__ == "__main__":
     main()

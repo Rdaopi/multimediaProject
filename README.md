@@ -43,8 +43,7 @@ Questo progetto confronta le capacità di estrazione dell'identità vocale (voic
    cd multimediaProject
 
 ## Comandi Conda per installare le dipendenze
-conda env create -f environment.yml
-conda activate openvoice_env
+nda conda activate openvoice_env
 
 **Comando per fare l'upgrade dell'ambiente conda esistente in seguito all'upgrade di nuove dipendenze**
 conda env update --file environment.yml --prune
