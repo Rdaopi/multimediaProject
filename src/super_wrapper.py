@@ -31,11 +31,15 @@ def clean_memory():
 
 def main():
     # --- CONFIGURAZIONE ---
-    # Input: File WAV originali
-    INPUT_DIR = os.path.join(PROJECT_ROOT, "data", "raw_vctk")
-    
+    # I percorsi sono pilotati da variabili d'ambiente (impostate in run_analysis.sh).
+    # Se non definite, si ricade sul comportamento locale di default.
+    #   VOICE_INPUT_DIR -> cartella dei .wav di input
+    #   VOICE_DATA_DIR  -> cartella base per gli output (embeddings, db, grafici)
+    INPUT_DIR = os.environ.get("VOICE_INPUT_DIR", os.path.join(PROJECT_ROOT, "data", "raw_vctk"))
+    DATA_DIR = os.environ.get("VOICE_DATA_DIR", os.path.join(PROJECT_ROOT, "data"))
+
     # Output: Cartella base per gli embeddings
-    OUTPUT_BASE = os.path.join(PROJECT_ROOT, "data", "embeddings")
+    OUTPUT_BASE = os.path.join(DATA_DIR, "embeddings")
 
     # Lista Tasks: (Classe, nome_cartella_output, suffisso_file)
     tasks = [
@@ -48,6 +52,7 @@ def main():
     print(f"🌟 SUPER WRAPPER (Master) AVVIATO")
     print(f"📍 Esecuzione da: {CURRENT_DIR}")
     print(f"📂 Input Data: {INPUT_DIR}")
+    print(f"💾 Output Base: {OUTPUT_BASE}")
     print("--------------------------------------------------")
 
     if not os.path.exists(INPUT_DIR):

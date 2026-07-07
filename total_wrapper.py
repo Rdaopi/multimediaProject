@@ -7,7 +7,9 @@ import numpy as np
 # --- SETUP PERCORSI ---
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.join(CURRENT_DIR, "src")
-DATA_DIR = os.path.join(CURRENT_DIR, "data")
+# VOICE_DATA_DIR (impostata in run_analysis.sh) decide dove vengono letti gli
+# embedding e scritto il database. Default: ./data accanto a questo script.
+DATA_DIR = os.environ.get("VOICE_DATA_DIR", os.path.join(CURRENT_DIR, "data"))
 
 def run_script(script_path):
     """Esegue uno script python come processo separato."""
@@ -54,6 +56,7 @@ def compile_database():
     # Creiamo il DataFrame e lo salviamo
     import pandas as pd
     df = pd.DataFrame(rows)
+    os.makedirs(DATA_DIR, exist_ok=True)
     df.to_pickle(db_path)
         
     print(f"✅ Database compilato con successo! Salvato in: {db_path}")

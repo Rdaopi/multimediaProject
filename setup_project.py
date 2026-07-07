@@ -21,39 +21,90 @@ def print_error(message):
     print(f"❌ {message}")
     return False
 
+def _pip_install(args, description):
+    """Esegue 'pip install <args>' e ritorna True solo se il comando ha successo."""
+    print(f"📦 {description}")
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "install", *args],
+        check=False
+    )
+    return result.returncode == 0
+
+def _module_importable(module_name):
+    """Verifica che un modulo sia realmente importabile in QUESTO interprete."""
+    result = subprocess.run(
+        [sys.executable, "-c", f"import {module_name}"],
+        check=False,
+        capture_output=True
+    )
+    return result.returncode == 0
+
 def install_dependencies():
-    """Installa i pacchetti da requirements.txt."""
+    """Installa i pacchetti da requirements e le librerie esterne necessarie.
+
+    A differenza della versione precedente, questa funzione NON stampa successo
+    in modo incondizionato: controlla il return code di ogni installazione e
+    verifica che 'openvoice' sia davvero importabile prima di ritornare True.
+    """
     print_step("Installazione Dipendenze Python")
-    
-    req_file = os.path.join(os.path.dirname(__file__), "requirements.txt")
-    
+
+    req_file = os.path.join(os.path.dirname(__file__), "requirements_full.txt")
     if not os.path.exists(req_file):
-        return print_error(f"File requirements.txt non trovato: {req_file}")
-    
-    print(f"📦 Installazione da: {req_file}")
-    
+        req_file = os.path.join(os.path.dirname(__file__), "requirements.txt")
+        if not os.path.exists(req_file):
+            return print_error("Nessun file requirements trovato.")
+
     try:
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-q", "-r", req_file],
-            check=False,
-            timeout=300,
-            capture_output=True,
-            text=True
-        )
-        
-        if result.returncode != 0:
-            print(f"⚠️ Warning durante l'installazione:")
-            print(result.stderr[:500])
-            # Continua comunque, non bloccare
-        
-        print_success("Dipendenze controllate/installate")
+        # 1. Requirements standard.
+        #    Non bloccante: alcuni pacchetti nel file possono essere opzionali.
+        _pip_install(["-r", req_file], f"Installazione da {os.path.basename(req_file)}...")
+
+        # 2. HuggingFace Hub: serve per il download dei modelli, quindi è bloccante.
+        if not _module_importable("huggingface_hub"):
+            if not _pip_install(["huggingface_hub"], "Installazione HuggingFace Hub..."):
+                return print_error("Installazione di huggingface_hub fallita.")
+
+        # 3. PyAV: serve solo assicurarsi che 'av' sia già presente nell'ambiente
+        #    (una versione moderna, es. 17.x). NON lasciamo che OpenVoice lo
+        #    reinstalli: il suo setup pinna faster-whisper==0.9.0 -> av==10.*, che
+        #    non compila con Cython 3 (errore su av/logging.pyx).
+        if not _module_importable("av"):
+            if not _pip_install(["av"], "Installazione PyAV (wheel precompilata)..."):
+                return print_error(
+                    "Impossibile installare 'av'. Verifica requirements_full.txt."
+                )
+
+        # 4. OpenVoice da GitHub, MA senza le sue dipendenze.
+        #    --no-deps installa solo il codice Python di 'openvoice': le librerie
+        #    che gli servono a runtime (torch, librosa, soundfile, faster-whisper,
+        #    av, ...) sono già nell'ambiente in versioni moderne e funzionanti.
+        #    Senza --no-deps, pip tenta di compilare le versioni pinnate da
+        #    OpenVoice (numpy==1.22.0, av==10.*) che non buildano su Python/
+        #    Cython moderni, e l'installazione fallisce.
+        if not _pip_install(
+            ["--no-deps", "git+https://github.com/myshell-ai/OpenVoice.git"],
+            "Installazione OpenVoice (da GitHub, senza dipendenze)..."
+        ):
+            print_error("Installazione di OpenVoice fallita.")
+            print("   Riprova a mano: pip install --no-deps "
+                  "\"git+https://github.com/myshell-ai/OpenVoice.git\"")
+            return False
+
+        # 5. Verifica REALE: il modulo deve essere importabile, non basta che pip
+        #    non abbia dato errore.
+        if not _module_importable("openvoice"):
+            return print_error(
+                "'openvoice' non è importabile dopo l'installazione. "
+                "Controlla l'output di pip qui sopra."
+            )
+
+        print_success("Dipendenze installate e 'openvoice' importabile")
         return True
-        
+
     except subprocess.TimeoutExpired:
-        return print_error("Timeout durante l'installazione (>5 min)")
+        return print_error("Timeout durante l'installazione")
     except Exception as e:
-        print(f"⚠️ Errore durante pip install: {e}")
-        return True  # Non bloccare
+        return print_error(f"Errore durante pip install: {e}")
 
 def verify_directories():
     """Verifica e crea le cartelle necessarie."""
@@ -224,10 +275,13 @@ def main():
     print("🚀 SETUP VOICE IDENTITY ANALYSIS TOOL 🚀".center(60))
     print("🌟"*30 + "\n")
     
-    # 1. Installa dipendenze
+    # 1. Installa dipendenze.
+    #    Bloccante: senza 'openvoice' la pipeline crasha subito dopo, quindi
+    #    ci fermiamo qui con un messaggio chiaro invece di proseguire.
     if not install_dependencies():
-        print_error("Fallito: Impossibile installare dipendenze")
-        # Continua comunque
+        print_error("Setup interrotto: dipendenze non installate correttamente.")
+        print("   Risolvi l'installazione (vedi messaggi sopra) e rilancia.")
+        return False
     
     # 2. Verifica cartelle
     if not verify_directories():

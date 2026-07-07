@@ -1,0 +1,5 @@
+Model,System,Fake_Var,Entropy_Ratio(F/R),Avg_Sim,N
+cosyvoice,systema,13.3119,0.4663,0.7924,2
+gpt_sovits,systema,0.2203,0.2203,0.8774,2
+openvoice,systema,12.021,0.517,0.6014,2
+styletts2,systema,9.752994543203196e+36,0.3628,,2
