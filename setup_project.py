@@ -81,14 +81,15 @@ def install_dependencies():
         #    Senza --no-deps, pip tenta di compilare le versioni pinnate da
         #    OpenVoice (numpy==1.22.0, av==10.*) che non buildano su Python/
         #    Cython moderni, e l'installazione fallisce.
-        if not _pip_install(
-            ["--no-deps", "git+https://github.com/myshell-ai/OpenVoice.git"],
-            "Installazione OpenVoice (da GitHub, senza dipendenze)..."
-        ):
-            print_error("Installazione di OpenVoice fallita.")
-            print("   Riprova a mano: pip install --no-deps "
-                  "\"git+https://github.com/myshell-ai/OpenVoice.git\"")
-            return False
+        if not _module_importable("openvoice"):
+            if not _pip_install(
+                ["--no-deps", "git+https://github.com/myshell-ai/OpenVoice.git"],
+                "Installazione OpenVoice (da GitHub, senza dipendenze)..."
+            ):
+                print_error("Installazione di OpenVoice fallita.")
+                print("   Riprova a mano: pip install --no-deps "
+                      "\"git+https://github.com/myshell-ai/OpenVoice.git\"")
+                return False
 
         # 5. Verifica REALE: il modulo deve essere importabile, non basta che pip
         #    non abbia dato errore.
