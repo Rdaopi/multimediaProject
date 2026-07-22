@@ -1,11 +1,14 @@
 import os
-import re
+import sys
 import pickle
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cosine, euclidean
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(CURRENT_DIR, "src"))
+
+from metadata_utils import attach_metadata
 
 # I dati possono stare su un disco diverso (es. /media/SSD_new/...): basta
 # esportare VOICE_DATA_DIR prima di lanciare, senza toccare il codice.
@@ -13,15 +16,6 @@ DATA_DIR = os.environ.get("VOICE_DATA_DIR", os.path.join(CURRENT_DIR, "data"))
 DB_PATH = os.path.join(DATA_DIR, "embedding_db.pkl")
 OUTPUT_CSV = os.path.join(DATA_DIR, "statistical_results.csv")
 PER_SYSTEM_CSV = os.path.join(DATA_DIR, "statistical_results_per_system.csv")
-
-# Formato dei nomi file del dataset ITASpoof:
-#   detection_{generatore}_speaker{speakerID}_sentence{sentenceID}.wav
-# 'natural' = audio reale (label 0); ogni altro generatore = sintetico (system 1-7).
-# 'generator' e 'speaker' sono non-greedy per reggere eventuali underscore interni.
-FILENAME_RE = re.compile(
-    r"detection_(?P<generator>.+?)_speaker(?P<speaker>.+?)_sentence(?P<sentence>[^_.]+)",
-    re.IGNORECASE,
-)
 
 
 def load_data():
@@ -35,34 +29,12 @@ def load_data():
 
 
 def parse_metadata(df):
-    """Estrae generatore, speaker, sentence e tipo (Real/Fake) dal filename."""
-    def parse_one(filename):
-        base = os.path.splitext(os.path.basename(str(filename)))[0]
-        m = FILENAME_RE.match(base)
-        if not m:
-            return pd.Series({
-                "generator": None, "speaker_id": None,
-                "sentence_id": None, "voice_type": "Unknown",
-            })
-        gen = m.group("generator").lower()
-        return pd.Series({
-            "generator": gen,
-            "speaker_id": m.group("speaker"),
-            "sentence_id": m.group("sentence"),
-            "voice_type": "Real" if gen == "natural" else "Fake",
-        })
+    """Etichetta reale/sintetico, system, generator, speaker/sentence id.
 
-    meta = df["filename"].apply(parse_one)
-    df = pd.concat([df.reset_index(drop=True), meta.reset_index(drop=True)], axis=1)
-
-    n_unknown = int((df["voice_type"] == "Unknown").sum())
-    if n_unknown:
-        print(f"⚠️  {n_unknown} file non riconosciuti dal parser dei nomi (ignorati).")
-        # Mostra un paio di esempi per capire subito se il formato è diverso.
-        sample = df[df["voice_type"] == "Unknown"]["filename"].head(3).tolist()
-        if sample:
-            print(f"    Esempi: {sample}")
-
+    Fonte primaria: protocols/{split}_metadata.csv (system, label ufficiali).
+    Fallback: parsing del nome file, per i casi non coperti dai CSV.
+    """
+    df = attach_metadata(df.reset_index(drop=True))
     return df[df["voice_type"] != "Unknown"].copy()
 
 

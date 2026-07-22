@@ -1,5 +1,5 @@
 import os
-import re
+import sys
 import pickle
 import numpy as np
 import pandas as pd
@@ -7,27 +7,14 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(CURRENT_DIR, "src"))
+
+from metadata_utils import attach_metadata
+
 # VOICE_DATA_DIR (impostata in run_analysis.sh) decide dove leggere il database
 # e dove salvare i grafici. Default: ./data accanto agli altri output.
 DATA_DIR = os.environ.get("VOICE_DATA_DIR", "data")
-
-# Stesso parser dei nomi usato in statistical_analysis.py, per coerenza:
-#   detection_{generatore}_speaker{speakerID}_sentence{sentenceID}.wav
-# 'natural' = reale, ogni altro generatore = sintetico.
-FILENAME_RE = re.compile(
-    r"detection_(?P<generator>.+?)_speaker(?P<speaker>.+?)_sentence(?P<sentence>[^_.]+)",
-    re.IGNORECASE,
-)
-
-
-def parse_name(filename):
-    """Ritorna (generator, voice_type) dal nome file. Fallback robusto se non combacia."""
-    base = os.path.splitext(os.path.basename(str(filename)))[0]
-    m = FILENAME_RE.match(base)
-    if not m:
-        return ("unknown", "Unknown")
-    gen = m.group("generator").lower()
-    return (gen, "Real" if gen == "natural" else "Fake")
 
 
 def load_embeddings(db_path):
