@@ -91,15 +91,11 @@ def main():
     df = pd.DataFrame(data)
     df["filename"] = df["filename"].apply(lambda x: os.path.basename(str(x)))
 
-    # Aggiunge generator + voice_type per colorare i punti.
-    parsed = df["filename"].apply(parse_name)
-    df["generator"] = parsed.apply(lambda t: t[0])
-    df["voice_type"] = parsed.apply(lambda t: t[1])
-
-    n_unknown = int((df["voice_type"] == "Unknown").sum())
-    if n_unknown:
-        print(f"⚠️  {n_unknown} file non riconosciuti dal parser dei nomi "
-              f"(verranno mostrati in grigio come 'Unknown').")
+    # Aggiunge generator + voice_type (da protocols/*.csv, con fallback sul
+    # parsing del nome file). I file non etichettabili restano "Unknown" e
+    # vengono mostrati in grigio invece di essere scartati, per coerenza con
+    # il comportamento precedente di questo script.
+    df = attach_metadata(df)
 
     try:
         plot_voice_comparison(df, output_path)
